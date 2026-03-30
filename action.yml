@@ -1,0 +1,45 @@
+name: Publish Docs to DP Workers
+description: Validate site config, build Astro docs, bundle static output, and publish to dp-workers.
+
+inputs:
+  template-dir:
+    description: Path to the checked-out template repository.
+    required: false
+    default: .
+  publish-url:
+    description: Fully-qualified dp-workers publish endpoint.
+    required: false
+    default: https://dp-workers.brendongorelik.workers.dev/v1/publish
+  publish-audience:
+    description: OIDC audience expected by dp-workers.
+    required: false
+    default: dp-workers.brendongorelik.workers.dev-publish-v0
+  root-domain:
+    description: Root domain used by dp-workers to serve published sites.
+    required: false
+    default: dp-workers.brendongorelik.workers.dev
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
+      working-directory: ${{ github.action_path }}
+
+    - name: Validate, build, and publish
+      run: node ./scripts/publish-from-template.mjs
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        TEMPLATE_DIR: ${{ inputs.template-dir }}
+        PUBLISH_URL: ${{ inputs.publish-url }}
+        PUBLISH_AUDIENCE: ${{ inputs.publish-audience }}
+        ROOT_DOMAIN: ${{ inputs.root-domain }}
