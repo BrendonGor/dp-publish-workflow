@@ -9,15 +9,15 @@ inputs:
   publish-url:
     description: Fully-qualified dp-workers publish endpoint.
     required: false
-    default: https://dp-workers.brendongorelik.workers.dev/v1/publish
+    default: https://test.brendongorelik.org/v1/publish
   publish-audience:
     description: OIDC audience expected by dp-workers.
     required: false
-    default: dp-workers.brendongorelik.workers.dev-publish-v0
+    default: test.brendongorelik.org-publish-v0
   root-domain:
     description: Root domain used by dp-workers to serve published sites.
     required: false
-    default: dp-workers.brendongorelik.workers.dev
+    default: test.brendongorelik.org
 
 runs:
   using: composite

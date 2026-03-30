@@ -6,9 +6,6 @@ import { parse } from "yaml";
 import { z } from "zod";
 
 const SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
-const DEFAULT_PUBLISH_URL = "https://dp-workers.brendongorelik.workers.dev/v1/publish";
-const DEFAULT_AUDIENCE = "dp-workers.brendongorelik.workers.dev-publish-v0";
-const DEFAULT_ROOT_DOMAIN = "dp-workers.brendongorelik.workers.dev";
 const JSON_MANIFEST_FILENAME = "__manifest.json";
 
 const SiteConfigSchema = z.object({
@@ -17,7 +14,16 @@ const SiteConfigSchema = z.object({
 
 const actionRoot = process.cwd();
 const workspaceRoot = process.env.GITHUB_WORKSPACE ?? actionRoot;
-const templateDir = path.resolve(workspaceRoot, process.env.TEMPLATE_DIR ?? ".");
+const templateDirInput = process.env.TEMPLATE_DIR;
+const publishUrl = process.env.PUBLISH_URL;
+const publishAudience = process.env.PUBLISH_AUDIENCE;
+const rootDomain = process.env.ROOT_DOMAIN;
+
+if (!templateDirInput || !publishUrl || !publishAudience || !rootDomain) {
+  throw new Error("Missing one or more required env vars: TEMPLATE_DIR, PUBLISH_URL, PUBLISH_AUDIENCE, ROOT_DOMAIN");
+}
+
+const templateDir = path.resolve(workspaceRoot, templateDirInput);
 
 const siteConfigPath = path.join(templateDir, "site.config.yaml");
 const templateContentDir = path.join(templateDir, "content");
@@ -88,7 +94,7 @@ async function createBundleBase64() {
   });
 }
 
-async function requestGitHubOidcToken() {
+async function requestGitHubOidcToken(audience) {
   if (process.env.PUBLISH_TOKEN) {
     return process.env.PUBLISH_TOKEN;
   }
@@ -102,7 +108,6 @@ async function requestGitHubOidcToken() {
     throw new Error("GitHub OIDC environment variables are missing");
   }
 
-  const audience = process.env.PUBLISH_AUDIENCE ?? DEFAULT_AUDIENCE;
   const separator = requestUrl.includes("?") ? "&" : "?";
   const response = await fetch(
     `${requestUrl}${separator}audience=${encodeURIComponent(audience)}`,
@@ -128,7 +133,6 @@ async function requestGitHubOidcToken() {
 
 async function buildAndPublish() {
   const siteConfig = await readSiteConfig();
-  const rootDomain = process.env.ROOT_DOMAIN ?? DEFAULT_ROOT_DOMAIN;
   const siteOrigin = `https://${siteConfig.subdomain}.${rootDomain}`;
 
   await syncTemplateMarkdown();
@@ -142,8 +146,7 @@ async function buildAndPublish() {
   await writeManifest(siteConfig.subdomain);
 
   const bundleBase64 = await createBundleBase64();
-  const token = await requestGitHubOidcToken();
-  const publishUrl = process.env.PUBLISH_URL ?? DEFAULT_PUBLISH_URL;
+  const token = await requestGitHubOidcToken(publishAudience);
 
   const response = await fetch(publishUrl, {
     method: "POST",
