@@ -7,6 +7,7 @@ import { z } from "zod";
 
 const SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const JSON_MANIFEST_FILENAME = "__manifest.json";
+const TEMPLATE_DEFAULT_SUBDOMAIN = "example-subdomain";
 
 const SiteConfigSchema = z.object({
   subdomain: z.string().min(3).max(63).regex(SUBDOMAIN_PATTERN),
@@ -133,6 +134,16 @@ async function requestGitHubOidcToken(audience) {
 
 async function buildAndPublish() {
   const siteConfig = await readSiteConfig();
+
+  // Template repos start with a placeholder subdomain. Skipping here avoids
+  // failing first-run workflow executions before the repo owner picks a real value.
+  if (siteConfig.subdomain === TEMPLATE_DEFAULT_SUBDOMAIN) {
+    console.log(
+      `Skipping publish because site.config.yaml uses default subdomain '${TEMPLATE_DEFAULT_SUBDOMAIN}'.`,
+    );
+    return;
+  }
+
   const siteOrigin = `https://${siteConfig.subdomain}.${rootDomain}`;
 
   await syncTemplateMarkdown();
